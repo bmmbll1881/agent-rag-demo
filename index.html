@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent 与 RAG 工程演示 · LocalLife × Youju</title>
+<style>
+:root{color-scheme:light;--ink:#142434;--muted:#45576a;--blue:#174ead;--paper:#f1f5fa;--line:#ccd8e5;--green:#15593f}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.65 "Inter","Microsoft YaHei",sans-serif}
+main{max-width:1080px;margin:auto;padding:42px 24px 64px}
+nav{display:flex;flex-wrap:wrap;gap:20px}
+a{color:var(--blue);text-underline-offset:4px}
+header{padding:38px 0 24px}
+h1{font-size:clamp(2rem,6vw,4.3rem);line-height:1.13;letter-spacing:-.04em;margin:0}
+header p,.muted{color:var(--muted)}
+article{margin:24px 0;background:white;border:1px solid var(--line);border-radius:18px;padding:clamp(18px,4vw,36px);scroll-margin-top:20px}
+h2{font-size:clamp(1.35rem,3vw,2rem);margin:0}
+h3{margin-top:0;font-size:1.05rem}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:20px 0}
+.output,details{background:var(--paper);padding:16px 18px;border-radius:10px;border:1px solid var(--line)}
+.output p:first-child{margin-top:0}
+.output p:last-child{margin-bottom:0}
+fieldset{border:0;padding:0;margin:0 0 12px}
+legend{margin-bottom:8px;font-weight:650}
+label{display:inline-flex;align-items:center;gap:4px;padding:5px 12px;border:1px solid var(--line);border-radius:8px;margin:0 4px 4px 0}
+input{accent-color:var(--blue)}
+summary{font-weight:650;cursor:pointer}
+:focus-visible{outline:3px solid var(--blue);outline-offset:4px}
+.state{font-weight:700;color:var(--green)}
+code{overflow-wrap:anywhere}
+blockquote{margin:12px 0;padding-left:12px;border-left:3px solid var(--blue)}
+@media(max-width:640px){main{padding:24px 16px 40px}.grid{grid-template-columns:1fr}header{padding-top:26px}}
+</style>
+<main>
+<nav aria-label="项目导航"><a href="#locallife">LocalLife</a><a href="#youju">有据 Youju</a></nav>
+<header>
+<h1>Agent 与 RAG 工程演示</h1>
+<p>调整预算、回查引用，查看两条故障恢复路径。页面交互复现固定验收样例。</p>
+</header>
+<article id="locallife">
+<h2>LocalLife · 两人用餐怎么选</h2>
+<p class="muted">FastAPI · LangGraph Supervisor · MySQL · Redis</p>
+<div class="grid">
+<div>
+<fieldset id="budget">
+<legend>调整同一会话的人均预算</legend>
+<label><input type="radio" name="budget" value="100" checked> 100 元</label>
+<label><input type="radio" name="budget" value="50"> 50 元</label>
+</fieldset>
+<div class="output" id="recommendations" aria-live="polite">
+<p><strong>两人用餐 · 人均 100 元</strong></p>
+<p>登记均价 60 元的商铺 <span class="state">保留推荐</span></p>
+<p>登记均价 120 元的商铺 · 超预算</p>
+<p>缺登记均价的商铺 · 待确认</p>
+</div>
+</div>
+<div>
+<h3>规划器出错时</h3>
+<details><summary>查看故障注入结果</summary><p>分别模拟规划器输出非法内容和调用异常。两种情形均回退到确定性 Supervisor，业务结果与基线一致，会话轮次只保存一次。</p></details>
+</div>
+</div>
+<p class="muted">已有验收记录覆盖 111 项业务回归、30 个决策场景与 20 个权限和安全用例。</p>
+</article>
+<article id="youju">
+<h2>有据 Youju · 这笔收入从哪来</h2>
+<p class="muted">FastAPI · pgvector · 中文 BM25 · Redis · MCP</p>
+<div class="grid">
+<div class="output">
+<p>第三季度营业收入是多少？</p>
+<p><strong>100 万元 <a href="#citation" id="citation-link">[S1]</a></strong></p>
+<details id="citation"><summary>查看引用和回查方式</summary>
+<blockquote>第三季度营业收入 100 万元。</blockquote>
+<p class="muted">此处展示合成简报的脱敏样例。服务返回文件名与字符位置，并通过 <code>run_id</code> 回查当次答案和证据。</p>
+</details>
+</div>
+<div>
+<h3>文档索引更新出错时</h3>
+<details><summary>查看更换问法后的结果</summary><p>注入嵌入故障后，更新失败。改问「第三季度公司取得多少营业收入？」，在未命中缓存的情况下，仍从旧版本查到 100 万元的原文。</p></details>
+</div>
+</div>
+<p class="muted">演示证据来自合成文档、真实 PostgreSQL/pgvector 与 Redis，以及确定性模型替身。</p>
+</article>
+<footer><p>LocalLife 通过 MCP 调用 Youju 获取文档证据并回查问答记录。</p></footer>
+</main>
+<script>
+const budget = document.querySelector("#budget");
+const output = document.querySelector("#recommendations");
+budget.addEventListener("change", (event) => {
+  const amount = Number(event.target.value);
+  const candidate = amount === 50 ? "超预算，退出推荐" : "保留推荐";
+  output.querySelector("strong").textContent = `两人用餐 · 人均 ${amount} 元`;
+  output.querySelector(".state").textContent = candidate;
+});
+document.querySelector("#citation-link").addEventListener("click", () => {
+  document.querySelector("#citation").open = true;
+});
+</script>
+</html>
